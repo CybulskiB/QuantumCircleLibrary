@@ -196,10 +196,6 @@ getMatrixList accumulator (x:xs) = getMatrixList accumulator' matrixes
 --Kolejna funkcja ktora dziala ale brzydko
 
 
---Funkcja jako argument przyjmuje liste macierz w postaci  
-separateVectors :: [[String]] -> [[[String]]]
-separateVectors = undefined 
-
 --Funkcja bierze ciag znaakow w postaci kolejnych amplitud prawdopodobienstwa i zwraca ich list
 -- Przyklady uzycia
 -- getAmplitudeList "alpha_1" [] = ["alpha_1"]

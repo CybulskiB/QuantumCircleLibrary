@@ -4,6 +4,7 @@
 
 --W tym module znajduja sie funkcje opisujace zmiane stanu cyklu kwantowego po zaaplikowaniu wybranej bramki na danym kubicie/kubitach 
 --w obecnej wersji modul nie wyczerpuje wszystkich bramek kwantowych a jedynie te niezbedne do opisania logiki klasycznej
+--Modul zaiwera : pojedyncze bramki I, X, CCX oraz konstruowanie i aplikacje kilkukubitowej bramki X na dowolnych kubitach zawartych w cyklu
 
 module QuantumGates where 
 
@@ -11,15 +12,18 @@ import Basis
 
 
 --Funkcja zwraca liste iloczynow zewnetrznych ktorych suma tworzy macierz odpowiadajaca bramce I
-i:: [String]
-i = [" " ++ ket "1" ++ bra "1"] ++ [" " ++ ket "0" ++ bra "0"]
+--Macierze przedstawiane sa jako lista iloczynow zewnetrznych wektorow
+i:: [[String]]
+i = [[" " ++ ket "1" ++ bra "1"]] ++ [[" " ++ ket "0" ++ bra "0"]]
 --Funkcja zwraca liste iloczynow zewnetrznych ktorych suma tworzy  macierz odpowiadajaca bramce X
-x :: [String]
-x = [" " ++ ket "0" ++ bra "1"] ++ [" " ++ ket "1" ++ bra "0"]
---Funkcja zwraca liste macierzy ktorych suma tworzy macierz odpowiadajaca bramce CCX
+--Macierze przedstawiane sa jako lista iloczynow zewnetrznych wektorow
+x :: [[String]]
+x = [[" " ++ ket "0" ++ bra "1"]] ++ [[" " ++ ket "1" ++ bra "0"]]
+--Funkcja zwraca liste macierzy  ktorych suma tworzy macierz odpowiadajaca bramce CCX
+--Macierze przedstawiane sa jako lista iloczynow zewnetrznych wektorow
 ccx = matrixes
     where
-        productState = map (drop 3) (kronecker (kronecker i i) [" " ++ ket "0" ++ bra "0"] ++ kronecker (kronecker i [" " ++ bra "0" ++ ket "0"] ++ kronecker x [" " ++ bra "1" ++ ket "1"]) [" " ++ bra "1" ++ ket "1"])
+        productState = map (drop 3) (kronecker (kronecker (concat i) (concat i)) [" " ++ ket "0" ++ bra "0"] ++ kronecker (kronecker (concat i) [" " ++ bra "0" ++ ket "0"] ++ kronecker (concat x) [" " ++ bra "1" ++ ket "1"]) [" " ++ bra "1" ++ ket "1"])
         vectors = map (\z -> getVectorList z []) productState
         kets = map (filter ( \z -> getVectorType z == Ket) ) vectors 
         bras = map (filter ( \z -> getVectorType z == Bra) ) vectors 
@@ -47,7 +51,7 @@ construct_X qubits sizeOfCircuit =
     if null restGates then map (\z -> getVectorList z []) (map (drop 1) firstGate)
     else matrixes
     where
-        gateList =  map (\z -> if elem z qubits then x else i) [1..sizeOfCircuit]
+        gateList =  map (\z -> if elem z qubits then concat x else concat i) [1..sizeOfCircuit]
         firstGate = head gateList
         restGates = tail gateList
         productGates = map (drop sizeOfCircuit) (foldl kronecker firstGate restGates)
@@ -78,6 +82,9 @@ construct_X qubits sizeOfCircuit =
 -- apply_X qubitList circuit = ["alpha_1_alpha_2_alpha_3 |011>","alpha_1_alpha_2_beta_3 |010>","alpha_1_beta_2_alpha_3 |001>",
 --                              "alpha_1_beta_2_beta_3 |000>","beta_1_alpha_2_alpha_3 |111>","beta_1_alpha_2_beta_3 |110>",
 --                              "beta_1_beta_2_alpha_3 |101>","beta_1_beta_2_beta_3 |100>"]
+--Przykladowy program 4
+-- applyX [2,3] ["alpha_2_alpha_1 |100>","alpha_2_beta_1 |101>","beta_2_alpha_1 |110>","beta_2_beta_1 |111>"] =
+--              ["alpha_2_alpha_1 |111>","alpha_2_beta_1 |110>","beta_2_alpha_1 |101>","beta_2_beta_1 |100>"]
 apply_X :: [Int] -> [String] -> [String] 
 apply_X qubitsList circuit = map (drop 1) clearedState
     where
@@ -85,15 +92,4 @@ apply_X qubitsList circuit = map (drop 1) clearedState
         calculatedState = map calculateState stateAfterApply
         stateAfterApply = (\z -> kronecker z circuit) prepareToKronecker
         prepareToKronecker = map (" " ++ ) constructed_X
-        constructed_X =  map concat (construct_X qubitsList (length $ getAmplitudeList ( getAmplitudes $ head circuit) [] )) 
---TODO !!
---Funkcja zwraca liste macierzy ktorych suma tworzy bramke CCX
--- Macierz zapisana jest jako lista zawierajaca iloczyn zewnetrzny wektorow 
--- Bramka CCX aplikowana jest do 3 kubitow oznacza to ze  cykl musi byc nie mniejszy niz 3
--- argumenty Wywolania to:
---   3 elementowa lista kubitow na ktorych wywolana jest bramka (gdzie pierwsze dwa elementy to kubity kontrolne)
---   wielkosc cyklu kwantowego
---Przykladowe wywolania
--- construct_CCX [1,2,3] 3 = [["|110>","<110|"],["|100>","<100|"],["|010>","<010|"], ["|000>","<000|"],["|101>","<101|"],
---                              ["|001>","<001"],["|011>","<111|"],["|111>","<011|"]]   
-construct_CCX qubits sizeOfCircuit = undefined
+        constructed_X =  map concat (construct_X qubitsList (length (getState $ head circuit) - 2 )) 
