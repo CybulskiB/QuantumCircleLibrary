@@ -3,10 +3,10 @@
 --Znajdują się tu funkcje automatyzujące proces wyliczania kolejnych stanów cyklu np po zaaplikowaniu bramki X na 2 kubicie w 3 kubitowym cyklu
 
 --W tym module znajduja sie podstawy takie jak sposob przedstawienia kubitow oraz funkcja do inicjalizacji poczatkowego stanu  
-module Basic where 
+module Basis where 
 
-data VectorType = Ket | Bra deriving(Show)
-data OperationType = Ket_Ket | Bra_Bra | Bra_Ket | Ket_Bra deriving(Show)
+data VectorType = Ket | Bra | KetBra deriving(Show,Eq)
+data OperationType = Ket_Ket | Bra_Bra | Bra_Ket | Ket_Bra | KetBra_KetBra deriving(Show)
 --Funkcja zwracajaca zapis w postaci ketu 
 -- Przykładowe użycia
 -- ket 0 = |0>
@@ -38,29 +38,32 @@ qubitList list = [qubit $ head list] ++ (qubitList $ tail list)
 -- getAmplitudes "alpha_1 |0>" = "alpha_1"
 -- getAmplitudes "alpha_1_alpha_2 |00>" = "alpha_1_alpha_2"
 -- getAmplitudes "alpha_1_alpha_2_alpha_3 |000>" = "alpha_1_alpha_2_alpha_3"
+-- getAmplitudes " |1><1|" = ""
 getAmplitudes:: String -> String
-getAmplitudes amplitudesAndState = head $ words amplitudesAndState
+getAmplitudes amplitudesAndState = drop 13  (head $ words ("nullAmplitude" ++ amplitudesAndState))
 --Funkcja otrzymuje iloczyn amplitud prawdopodobienstwa oraz stan koncowy natomiast zwraca tylko stan koncowy oraz wyciaga oznacznei stanu z nawiasow dla ket'a
 -- Przykladowe wywolania:
 -- getState "alpha_1 |0>" = "|0>"
 -- getState "alpha_1_beta_2 |01>" = "|01>"
 -- getState "beta_1_alpha_2_alpha_3 |100>" = "|100>"
+-- getState " |1><1|" = " |1><1|"
 getState:: String -> String
-getState amplitudeAndState = head $ tail $ words amplitudeAndState
---getState amplitudeAndState = reverse  $ drop 1 (reverse (drop 1 (head $ tail $ words amplitudeAndState)))
+getState amplitudeAndState = head $ tail $ words ("nullAmplitude" ++ amplitudeAndState)
 --Funkcja zwraca iloczyn kroneckera dla 2 list zawierajacych amplitudy prawdopodobienstwa i stany  
 -- W najprotszym przypadku jest to iloczyn 2 kubitow : 
---      kronecker ["alpha_1 |0>","beta_1 |1>"] ["alpha_2 |0>","beta_2  |1>"] = ["alpha_1_alpha_2 |00>","alpha_1_beta_2 |01>","beta_1_alpha_2 |10>","beta_1_beta_2 |11>"] 
+--      kronecker ["alpha_1 |0>","beta_1 |1>"] ["alpha_2 |0>","beta_2  |1>"] = ["alpha_1_alpha_2 |0>|0>","alpha_1_beta_2 |0>|1>","beta_1_alpha_2 |1>|0>","beta_1_beta_2 |1>|1>"] 
 --Można użyć jednak iloczynu kroneckera na nieograniczonej ilości kubitów dla 3 kubitów wynosi on : 
---      ["alpha_1_alpha_2_alpha3 |000>","alpha_1_alpha_2_beta_3 |001>","alpha_1_beta_2_alpha_3 |010>","alpha_1_beta_2_beta_3 |011>",
---      "beta_1_alpha_2_alpha_3 |100>","beta_1_alpha_2_beta_3 |101>","beta_1_beta_2_alpha_3 |110>","beta_1_beta_2_beta_3 |111>"]
+--      ["alpha_1_alpha_2_alpha3 |0>|0>|0>","alpha_1_alpha_2_beta_3 |0>|0>|1>","alpha_1_beta_2_alpha_3 |0>|1>|0>","alpha_1_beta_2_beta_3 |0>|1>|1>",
+--      "beta_1_alpha_2_alpha_3 |1>|0>|0>","beta_1_alpha_2_beta_3 |1>|0>|1>","beta_1_beta_2_alpha_3 |1>|1>|0>","beta_1_beta_2_beta_3 |1>|1>|1>"]
+-- Mozna rowniez uzyc go do obliczenia iloczynu bramek 
+--      kronecker [" |1><1|"," |0><0|"] [" |0><1|"," |1><0|"] = ["_ |1><1||0><1|", "_ |1><1||1><0|","_ |0><0||0><1|","_|0><0||1><0|"]
+--      kronecker ["alpha_1_alpha_2 |00>","alpha_1_beta_2 |01>","beta_1_alpha_2 |10>","beta_1_beta_2 |11>"] [" |10>"," <11|"] = 
 kronecker :: [String] -> [String] -> [String]
 kronecker [] _ = []
 kronecker _ [] = []
 kronecker (x:xs) (y:ys) = [(getAmplitudes x) ++ "_" ++ (getAmplitudes y) ++ " " ++ (getState x) ++ (getState y) ] ++ (kronecker [x] ys) ++ (kronecker xs (y:ys))
 --Fukcja wyciaga wartosci z keta lub bra
 -- Przykladowe wywolanie 
--- getValue "|0>" = "0"
 -- getValue "|01>" = "01"
 -- getValue "<1|" = "1"
 -- getValue "<10|" = "10"
@@ -94,15 +97,21 @@ innerProduct :: String -> String -> String
 innerProduct bra ket = 
     if (getValue bra) == (getValue ket) then "1"
     else "0" 
+
+--Funkcja zwraca macierz w postaci iloczynu zewnetrznego 2 stanow 
+outerProduct :: String -> String -> String
+outerProduct = undefined
 --Funkcja okresla jakiego typu jest dany wektor 
 --Przykladowe wywolania 
 -- getVectorType "|1111>" = Ket
 -- getVectorType "<000|" = Bra
+-- getVectorType "|1><1|" = KetBra
 getVectorType :: String->VectorType
 getVectorType vector = 
     case start_end of
         "<|" -> Bra
         "|>" -> Ket
+        "||" -> KetBra
     where 
         start_end = (take 1 vector) ++ (take 1 (reverse vector)) 
 --Funkcja okresla jakiego rodzaju iloczynu nalezy uzyc pomiedzy 2 wektorami 
@@ -118,6 +127,7 @@ getOperationType firstVector secondVector =
         (Bra,Bra) -> Bra_Bra
         (Bra,Ket) -> Bra_Ket 
         (Ket,Bra) -> Ket_Bra
+        (KetBra,KetBra) -> KetBra_KetBra 
 --Funkcja otrzymuje dwa ciagi znakow odpowiadajace kolejnym bra lub ketom a nastepnie przeksztalca je do odpowiedniej formy 
 --z uwagi na aplikowanie funkcji do bramek moze nastapic wyzerowanie stanu metoda liczenia jest nastepujaca 
 --      ket x ket y = ket xy 
@@ -125,6 +135,7 @@ getOperationType firstVector secondVector =
 --      bra x ket y = 1 jeżeli x = y 
 --      bra x ket y = 0  jeżeli x != y 
 --      ket x bra y = ket x bra y 
+--      (ket x bra y) (ket z bra w) = ket xz bra yw
 -- Przykladowe wywolania 
 --      computeState "|0>" "|0>" = "|00>"
 --      computeState "<1|" "|0>" = "0" 
@@ -134,6 +145,7 @@ getOperationType firstVector secondVector =
 --      computeState "|1>" "<0|" = "|1><0|" 
 --      computeState "|11>" "<00|" = "|11><00|"
 --      computeState "<111|" "<0|" = "<1110|"
+--      computeState "|1><1|" "|0><1|"" = "|10><11|"
 computeState:: String -> String -> String
 computeState [] [] = [] 
 computeState firstVector secondVector = 
@@ -142,6 +154,7 @@ computeState firstVector secondVector =
         Bra_Bra -> kroneckerBraProduct firstVector secondVector 
         Bra_Ket -> innerProduct firstVector secondVector
         Ket_Bra -> firstVector ++ secondVector
+--        KetBra_KetBra -> 
 --Funkcja na ktorej pozycji w ciagu znakow znajduje sie jeden z 2  okreslonych znakow, 
 -- w przypadku nie wystepowania zwracana jest wielkosc ciagu
 
@@ -154,7 +167,7 @@ computeState firstVector secondVector =
 -- findChar "0000>" 0 '>' '|' = 5
 -- findChar "<1|" 0 '|' '>' = 3
 -- findChar "1111" 0 '0' '0' = 4
--- findChar "0000>" 0 '0' '|' = 1
+-- findChar "0000>" 0 '0' '|' = 1\
 findChar :: String -> Int -> Char -> Char -> Int 
 findChar [] acc _ _ = acc
 findChar (x:xs) acc char1 char2 = if x == char1 || x == char2 then (acc + 1) else findChar xs (acc + 1) char1 char2
@@ -169,12 +182,38 @@ getVectorList (x:xs) accumulator = getVectorList vectors' accumulator'
     where 
         size = findChar xs 0 '>' '|'
         accumulator' = accumulator ++ [[x] ++ take size xs]
-        vectors' = drop (size +1) (x:xs)
-
-
-
+        vectors' = drop (size + 1) (x:xs)
+--Funkcja bierzei ciag znakow w postaci kolejnych iloczynow zewnetrznych ket i bra opisujacych dana macierz a nastepnie konstruuje z nich liste
+-- Przyklady uzycia
+-- getMatrixList "|1><1||0><1|" [] = ["|1><1|","|0><1|""]
+getMatrixList :: [String] -> String  -> [String]
+getMatrixList  accumulator "" = accumulator
+getMatrixList accumulator (x:xs) = getMatrixList accumulator' matrixes 
+    where 
+        size = findChar xs 0 '|' '|' 
+        accumulator' = accumulator ++ [[x] ++ take size xs]
+        matrixes = drop (size + 1) (x:xs)
 --Kolejna funkcja ktora dziala ale brzydko
 
+
+--Funkcja jako argument przyjmuje liste macierz w postaci  
+separateVectors :: [[String]] -> [[[String]]]
+separateVectors = undefined 
+
+--Funkcja bierze ciag znaakow w postaci kolejnych amplitud prawdopodobienstwa i zwraca ich list
+-- Przyklady uzycia
+-- getAmplitudeList "alpha_1" [] = ["alpha_1"]
+-- getAmplitudeList "alpha_1_alpha_2" [] = ["alpha_1","alpha_2"]
+-- getAmplitudeList "alpha_1_alpha_2_alpha_3" [] = ["alpha_1","alpha_2","alpha_3"]
+-- getAmplitudeList "alpha_1_alpha_2_alpha_3_alpha_4" [] = ["alpha_1","alpha_2","alpha_3","alpha_4"]
+
+getAmplitudeList :: String -> [String] -> [String]
+getAmplitudeList "" accumulator = accumulator
+getAmplitudeList amplitudes accumulator = getAmplitudeList amplitudes' accumulator'
+    where 
+        size = 1 + findChar amplitudes 0 '_' '_'
+        accumulator' = accumulator ++ [take size amplitudes]
+        amplitudes' = drop (size + 1) amplitudes 
 --Funkcja bierze liste kolejnych bra i ketow a nastepnie zwraca liste policzonych bra i ketow (liczenie odbywa sie od lewej)
 -- Przyklady uzycia 
 -- computeVectorList ["|0>","|0>","|0>"] [] = ["|000>"]
@@ -192,6 +231,8 @@ computeVectorList (x:y:xs) computed =
         Bra_Bra -> computeVectorList ([kroneckerBraProduct x y] ++ xs) computed 
 
 --Funkcja bierze ciag znakow w postaci amplitudy ++ " " ++ stany a nastepnie wykonuje obliczenia na okreslonych stanach i zwraca amplitudy wraz z policzonymi stanami
+-- funkcja zaklada ze pomeidzy poszczegolnymi stanami znajduje sie iloczyn kroneckera 
+-- sluzy do wyliczania stanu cyklu "po" przejsciu kubitow przez okreslona bramke kwantowa nie do budowy bramki
 -- Przyklady uzycia
 -- calculateState "alpha_1_alpha2_alpha_3 |0>|0>|0>"  = "alpha_1_alpha_2_alpha_3 |000>"
 -- calculateState "alpha_1alpha_2 |0><1||1>" = "alpha_1_alpha_2 |0>1"
@@ -203,6 +244,7 @@ calculateState amplitudeWithState = amplitude ++ " " ++ calculatedState
         state = getState amplitudeWithState
         calculatedState = concat $ computeVectorList (getVectorList state []) []
 --Funkcja bierze liste kubitow a nastepnie zwraca liste iloczynow amplitud prawdopodobienstwa dla danego stanu 
+-- Odpowiada to zainicjowaniu cyklu kwantowego (wszystkie kubity zawarte w cyklu sa splatane)
 -- Przykład uzycia:
 -- x = qubitList [1,2,3]
 -- entangledQubitState x = 
@@ -214,3 +256,12 @@ entangledQubitState listOfQubits  = map calculateState (foldl kronecker firstQub
     where 
         firstQubit = head listOfQubits
         restQubits = tail listOfQubits
+--Funkcja oczyszcza liste amplitud prawdopodobienstwa i stanow z tych elementow w ktorych amplitudy prawdopodobienstwa osiagaja 0
+-- dodatkow usuwa takze niepotrzebne 1
+--Przykladowe wywolania:
+-- clearState ["_alpha_1 |0>0","_beta_1 |0>1","_alpha_1 |1>1","_beta_1 |1>0"] [] = ["_beta_1 |0>","_alpha_1 |1>"]
+clearState :: [String] -> [String] -> [String]
+clearState [] cleared = cleared
+clearState  (x:xs) cleared =
+    if  take 1 (reverse x) == "0" then clearState xs cleared
+    else clearState xs ( [reverse (drop 1 (reverse x))] ++ cleared)
